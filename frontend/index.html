@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Monitor - Status Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 URL Monitor</h1>
+            <p class="subtitle">Real-time monitoring dashboard</p>
+        </header>
+
+        <!-- Add New Monitor Section -->
+        <section class="add-monitor">
+            <h2>Add New Monitor</h2>
+            <form id="addMonitorForm">
+                <div class="form-group">
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        placeholder="https://example.com" 
+                        required
+                    >
+                    <input 
+                        type="number" 
+                        id="intervalInput" 
+                        placeholder="Check interval (seconds)" 
+                        min="10"
+                        value="60"
+                        required
+                    >
+                    <button type="submit" class="btn btn-primary">Add Monitor</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Status Display Section -->
+        <section class="monitors">
+            <h2>Monitored Services</h2>
+            <div id="monitorList" class="monitor-list">
+                <div class="loading">Loading monitors...</div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>Built for Datadog Internship | Backend powered by Go</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
