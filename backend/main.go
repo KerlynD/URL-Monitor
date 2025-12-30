@@ -6,19 +6,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/KerlynD/URL-Monitor/backend/db"
 	"github.com/KerlynD/URL-Monitor/backend/routes"
+	"github.com/KerlynD/URL-Monitor/backend/worker"
 )
 
 func main() {
 	/*
 		Main entry to the backend:
 			1. Init DB
-			2. Setup Routes
-			3. Configure HTTP
-			4. Start Server in goroutine
-			5. Shutdown on interupt
+			2. Start Monitor Checker
+			3. Setup Routes
+			4. Configure HTTP
+			5. Start Server in goroutine
+			6. Shutdown on interupt
 	*/
 
 	dbPath := "db/monitor.db"
@@ -32,6 +35,9 @@ func main() {
 			log.Printf("Error closing database: %v", err)
 		}
 	}()
+
+	checkInterval := 2 * time.Minute
+	worker.StartMonitorChecker(checkInterval)
 
 	handler := routes.SetupServer()
 

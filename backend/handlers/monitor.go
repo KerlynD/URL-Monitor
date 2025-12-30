@@ -165,7 +165,7 @@ func TriggerCheck(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	result := performCheck(monitor.URL)
+	result := PerformCheck(monitor.URL)
 
 	err = db.SaveResult(id, result)
 	if err != nil {
@@ -180,7 +180,7 @@ func TriggerCheck(response http.ResponseWriter, request *http.Request) {
 	json.NewEncoder(response).Encode(result)
 }
 
-func performCheck(targetURL string) models.MonitorResult {
+func PerformCheck(targetURL string) models.MonitorResult {
 	/*
 		This function creates an HTTP client (with timeout), makes a GET request,
 		checks duration and returns the result

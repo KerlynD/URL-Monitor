@@ -3,7 +3,6 @@ const REFRESH_INTERVAL = 30000;
 
 const addMonitorForm = document.getElementById('addMonitorForm');
 const urlInput = document.getElementById('urlInput');
-const intervalInput = document.getElementById('intervalInput');
 const monitorList = document.getElementById('monitorList');
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,10 +66,6 @@ function displayMonitors(monitors) {
                         <span class="detail-value">${responseTime}</span>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-label">Check Interval</span>
-                        <span class="detail-value">${monitor.check_interval}s</span>
-                    </div>
-                    <div class="detail-item">
                         <span class="detail-label">Last Checked</span>
                         <span class="detail-value">${lastChecked}</span>
                     </div>
@@ -101,14 +96,14 @@ async function handleAddMonitor(e) {
     e.preventDefault();
     
     const url = urlInput.value.trim();
-    const checkInterval = parseInt(intervalInput.value);
     
-    if (!url || !checkInterval) {
-        alert('Please fill in all fields');
+    if (!url) {
+        alert('Please enter a URL');
         return;
     }
     
     try {
+        // Create the monitor with default check interval
         const response = await fetch(`${API_BASE_URL}/monitor`, {
             method: 'POST',
             headers: {
@@ -116,7 +111,7 @@ async function handleAddMonitor(e) {
             },
             body: JSON.stringify({
                 url: url,
-                check_interval: checkInterval
+                check_interval: 60 // Default interval (backend handles actual checking)
             })
         });
         
@@ -125,12 +120,17 @@ async function handleAddMonitor(e) {
             throw new Error(error.error || 'Failed to add monitor');
         }
         
+        const newMonitor = await response.json();
+        
+        // Immediately trigger a check for the new monitor
+        await triggerCheck(newMonitor.id);
+        
         urlInput.value = '';
-        intervalInput.value = '60';
         
-        showMessage('Monitor added successfully!', 'success');
+        showMessage('Monitor added and checked successfully!', 'success');
         
-        loadMonitors();
+        // Reload monitors to show the new one with results
+        setTimeout(loadMonitors, 500);
     } catch (error) {
         console.error('Error adding monitor:', error);
         showMessage(error.message, 'error');
@@ -148,12 +148,19 @@ async function triggerCheck(monitorId) {
             throw new Error('Failed to trigger check');
         }
         
-        showMessage('Check completed!', 'success');
+        // Only show message if this is a manual check (called from button)
+        if (arguments.length > 1 || window.event) {
+            showMessage('Check completed!', 'success');
+            setTimeout(loadMonitors, 1000);
+        }
         
-        setTimeout(loadMonitors, 1000);
+        return true;
     } catch (error) {
         console.error('Error triggering check:', error);
-        showMessage('Failed to trigger check', 'error');
+        if (arguments.length > 1 || window.event) {
+            showMessage('Failed to trigger check', 'error');
+        }
+        throw error;
     }
 }
 
