@@ -25,6 +25,7 @@ func SetupServer() http.Handler {
 
 	handler = middleware.JSONMiddleware(handler)
 	handler = middleware.CORSMiddleware(handler)
+	handler = middleware.MetricsMiddleware(handler)
 	handler = middleware.LoggingMiddleware(handler)
 
 	return handler

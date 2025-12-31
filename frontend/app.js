@@ -1,5 +1,5 @@
 const API_BASE_URL = 'http://localhost:8080';
-const REFRESH_INTERVAL = 30000; 
+const REFRESH_INTERVAL = 60000; // 60 seconds (1 minute) 
 
 const addMonitorForm = document.getElementById('addMonitorForm');
 const urlInput = document.getElementById('urlInput');

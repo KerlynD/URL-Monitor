@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/KerlynD/URL-Monitor/backend/db"
+	"github.com/KerlynD/URL-Monitor/backend/metrics"
 	"github.com/KerlynD/URL-Monitor/backend/models"
 	"github.com/google/uuid"
 )
@@ -64,6 +65,14 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 			"error": "Failed to save monitor to DB",
 		})
 		return
+	}
+
+	// Track monitor creation
+	if metrics.Client != nil {
+		metrics.Client.Incr("monitors.created", nil, 1.0)
+
+		monitors, _ := db.GetAllMonitors()
+		metrics.Client.Gauge("monitors.total", float64(len(monitors)), nil, 1.0)
 	}
 
 	// Return 201
