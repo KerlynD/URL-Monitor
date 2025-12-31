@@ -22,12 +22,13 @@ func main() {
 			1. Detect if running in Docker
 			2. Init Logger
 			3. Init DB
-			4. Init Metrics
-			5. Start Monitor Checker
-			6. Setup Routes
-			7. Configure HTTP
-			8. Start Server in goroutine
-			9. Shutdown on interupt
+			4. Init Tracer
+			5. Init Metrics
+			6. Start Monitor Checker
+			7. Setup Routes
+			8. Configure HTTP
+			9. Start Server in goroutine
+			10. Shutdown on interupt
 	*/
 
 	// Detect Docker Container
@@ -114,7 +115,7 @@ func getDatadogHost() string {
 	}
 
 	// Default to host.docker.internal
-	return "host.docker.internal"
+	return "datadog-agent"
 }
 
 // Helper function to determine the Datadog Environment

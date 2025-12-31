@@ -1,0 +1,24 @@
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  clusterName: url-monitor-cluster
+  site: datadoghq.com
+
+  # enable features
+  logs:
+    enabled: true
+    containerCollectAll: true
+  
+  apm:
+    portEnabled: true
+  
+  dogstatsd:
+    useHostPort: true
+
+  # Tags
+  tags:
+    - env:kuberentes
+    - project:url-monitor
+
+# Cluster Checks
+clusterAgent:
+  enabled: true

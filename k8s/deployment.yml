@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-monitor
+  labels:
+    app: url-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: url-monitor
+  template:
+    metadata:
+      labels:
+        app: url-monitor
+        tags.datadoghq.com/service: "url-monitor"
+        tags.datadoghq.com/env: "kubernetes"
+        tags.datadoghq.com/version: "1.0.0"
+      annotations:
+        # Datadog log collection
+        ad.datadoghq.com/url-monitor.logs: '[{"source":"go","service":"url-monitor"}]'
+    spec:
+      containers:
+      - name: url-monitor
+        image: url-monitor:latest
+        imagePullPolicy: Never  # Use local image
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DD_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP  # Datadog Agent on host
+        - name: DD_ENV
+          value: "kubernetes"
+        - name: DD_SERVICE
+          value: "url-monitor"
+        - name: DD_VERSION
+          value: "1.0.0"
+        - name: DD_LOGS_INJECTION
+          value: "true"
+        - name: DD_TRACE_AGENT_PORT
+          value: "8126"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}  # Temporary storage (logs)
