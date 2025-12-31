@@ -13,6 +13,7 @@ import (
 	"github.com/KerlynD/URL-Monitor/backend/metrics"
 	"github.com/KerlynD/URL-Monitor/backend/routes"
 	"github.com/KerlynD/URL-Monitor/backend/worker"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 func main() {
@@ -47,6 +48,17 @@ func main() {
 			log.Printf("Error closing database: %v", err)
 		}
 	}()
+
+	// Initialize tracer
+    tracer.Start(
+        tracer.WithService("url-monitor"),           
+        tracer.WithEnv("dev"),                       
+        tracer.WithServiceVersion("1.0.0"),          
+        tracer.WithAgentAddr("localhost:8126"),      
+        tracer.WithAnalytics(true),                  
+        tracer.WithRuntimeMetrics(),                 
+    )
+    defer tracer.Stop()
 
 	// Init Metrics
 	err = metrics.InitMetrics("127.0.0.1:8125")

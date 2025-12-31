@@ -10,6 +10,8 @@ import (
 	"github.com/KerlynD/URL-Monitor/backend/metrics"
 	"github.com/KerlynD/URL-Monitor/backend/models"
 	"github.com/google/uuid"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 )
 
 /*
@@ -22,6 +24,10 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 		This function parses the request body, validates the URL in the body
 		generates a unique ID for the monitor, and saves it to the db
 	*/
+
+	span, _ := tracer.StartSpanFromContext(request.Context(), "handler.create_monitor")
+	defer span.Finish()
+
 	var req struct {
 		URL           string `json:"url"`
 		CheckInterval int    `json:"check_interval"`
@@ -29,6 +35,8 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 
 	err := json.NewDecoder(request.Body).Decode(&req)
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		// Return 400
 		response.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(response).Encode(map[string]string{
@@ -37,8 +45,15 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	span.SetTag("monitor.url", req.URL)
+	span.SetTag("monitor.check_interval", req.CheckInterval)
+
+	validationSpan := tracer.StartSpan("handler.url.validation", tracer.ChildOf(span.Context()))
 	parsedURL, err := url.Parse(req.URL)
+	validationSpan.Finish()
+
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		span.SetTag("error", true)
 		// Return 400
 		response.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(response).Encode(map[string]string{
@@ -57,7 +72,10 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 		UpdatedAt:     time.Now(),
 	}
 
+	saveSpan := tracer.StartSpan("db.save_monitor", tracer.ChildOf(span.Context()))
 	err = db.SaveMonitor(monitor)
+	saveSpan.Finish()
+
 	if err != nil {
 		// Return 500
 		response.WriteHeader(http.StatusInternalServerError)
@@ -88,8 +106,14 @@ func ListMonitors(response http.ResponseWriter, request *http.Request) {
 		This function requests all monitors from the database & builds a response status
 		for each.
 	*/
+
+	span, _ := tracer.StartSpanFromContext(request.Context(), "handler.list_monitors")
+	defer span.Finish()
+
 	monitors, err := db.GetAllMonitors()
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		// Return 500
 		response.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(response).Encode(map[string]string{
@@ -98,10 +122,13 @@ func ListMonitors(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+
 	var monitorResponses []models.MonitorWithStatus
 
 	for _, monitor := range monitors {
+		getLatestResultSpan := tracer.StartSpan("db.get_latest_result", tracer.ChildOf(span.Context()))
 		result, err := db.GetLatestResult(monitor.ID)
+		getLatestResultSpan.Finish()
 
 		status := models.MonitorWithStatus{
 			MonitorEntry: monitor,
@@ -129,11 +156,15 @@ func GetMonitor(response http.ResponseWriter, request *http.Request) {
 		the requested monitor, checks its latest result, and returns the status
 		of that monitor.
 	*/
+	span, _ := tracer.StartSpanFromContext(request.Context(), "handler.get_monitor")
+	defer span.Finish()
 
 	id := request.PathValue("id")
 
 	monitor, err := db.GetMonitor(id)
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		response.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(response).Encode(map[string]string{
 			"error": "Monitor not found",
@@ -141,7 +172,19 @@ func GetMonitor(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	getLatestResultSpan := tracer.StartSpan("db.get_latest_result", tracer.ChildOf(span.Context()))
 	result, err := db.GetLatestResult(id)
+	getLatestResultSpan.Finish()
+
+	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
+
+		response.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(response).Encode(map[string]string{
+			"error": "Failed to get latest result",
+		})
+	}
 
 	status := models.MonitorWithStatus{
 		MonitorEntry: monitor,
@@ -162,11 +205,18 @@ func TriggerCheck(response http.ResponseWriter, request *http.Request) {
 		performs an HTTP check with performCheck() (helper below) and saves result
 		to database
 	*/
+	span, _ := tracer.StartSpanFromContext(request.Context(), "handler.trigger_check")
+	defer span.Finish()
 
 	id := request.PathValue("id")
 
+	getMonitorSpan := tracer.StartSpan("db.get_monitor", tracer.ChildOf(span.Context()))
 	monitor, err := db.GetMonitor(id)
+	getMonitorSpan.Finish()
+
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		response.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(response).Encode(map[string]string{
 			"error": "Monitor not found",
@@ -174,10 +224,15 @@ func TriggerCheck(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	checkSpan := tracer.StartSpan("handler.perform_check", tracer.ChildOf(span.Context()))
 	result := PerformCheck(monitor.URL)
+	checkSpan.Finish()
 
 	err = db.SaveResult(id, result)
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
+
 		response.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(response).Encode(map[string]string{
 			"error": "Failed to save result",
@@ -194,10 +249,15 @@ func PerformCheck(targetURL string) models.MonitorResult {
 		This function creates an HTTP client (with timeout), makes a GET request,
 		checks duration and returns the result
 	*/
+	span := tracer.StartSpan("http.check", 
+		tracer.ResourceName("GET " + targetURL),
+		tracer.SpanType("http"),
+	)
+	defer span.Finish()
 
-	client := &http.Client{
+	client := httptrace.WrapClient(&http.Client{
 		Timeout: 10 * time.Second,
-	}
+	})
 
 	startTime := time.Now()
 
@@ -211,6 +271,8 @@ func PerformCheck(targetURL string) models.MonitorResult {
 	}
 
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		result.IsUp = false
 		result.Error = err.Error()
 		result.StatusCode = 0

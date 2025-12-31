@@ -5,9 +5,13 @@ import (
 
 	"github.com/KerlynD/URL-Monitor/backend/handlers"
 	"github.com/KerlynD/URL-Monitor/backend/middleware"
+	httptrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
 )
 
 func RegisterRoutes() *http.ServeMux {
+	/*
+		This function registers the routes for the server
+	*/
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /monitor", handlers.CreateMonitor)
@@ -19,9 +23,15 @@ func RegisterRoutes() *http.ServeMux {
 }
 
 func SetupServer() http.Handler {
+	/*
+		This function sets up the server and registers the routes
+	*/
 	mux := RegisterRoutes()
 
 	var handler http.Handler = mux
+
+	// Wrap handler with Datadog tracing
+	handler = httptrace.WrapHandler(handler, "url-monitor", "/")
 
 	handler = middleware.JSONMiddleware(handler)
 	handler = middleware.CORSMiddleware(handler)

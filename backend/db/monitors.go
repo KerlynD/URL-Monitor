@@ -6,12 +6,19 @@ import (
 	"log"
 
 	"github.com/KerlynD/URL-Monitor/backend/models"
+	tracer "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 /*
 Function to save monitor into sqlite DB
 */
 func SaveMonitor(entry models.MonitorEntry) error {
+	span := tracer.StartSpan("db.save_monitor",
+		tracer.SpanType("sql"),
+		tracer.ResourceName("INSERT INTO monitors"),
+	)
+	defer span.Finish()
+
 	query := `
 	INSERT OR REPLACE INTO monitors (id, url, check_interval, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?)
@@ -26,6 +33,8 @@ func SaveMonitor(entry models.MonitorEntry) error {
 	)
 
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return fmt.Errorf("eror saving monitor to db: %w", err)
 	}
 
@@ -37,6 +46,12 @@ func SaveMonitor(entry models.MonitorEntry) error {
 Function to get a single monitor from the DB
 */
 func GetMonitor(id string) (models.MonitorEntry, error) {
+	span := tracer.StartSpan("db.get_monitor",
+		tracer.SpanType("sql"),
+		tracer.ResourceName("SELECT * FROM monitors WHERE id = ?"),
+	)
+	defer span.Finish()
+
 	query := `SELECT id, url, check_interval, created_at, updated_at 
               FROM monitors 
               WHERE id = ?`
@@ -54,6 +69,8 @@ func GetMonitor(id string) (models.MonitorEntry, error) {
 	)
 
 	if err == sql.ErrNoRows || err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return models.MonitorEntry{}, fmt.Errorf("error querying db for monitor: %w", err)
 	}
 
@@ -64,11 +81,19 @@ func GetMonitor(id string) (models.MonitorEntry, error) {
 Function to get all current URLs we are monitoring
 */
 func GetAllMonitors() ([]models.MonitorEntry, error) {
+	span := tracer.StartSpan("db.get_all_monitors",
+		tracer.SpanType("sql"),
+		tracer.ResourceName("SELECT * FROM monitors"),
+	)
+	defer span.Finish()
+
 	query := `SELECT id, url, check_interval, created_at, updated_at 
               FROM monitors`
 
 	rows, err := db.Query(query)
 	if err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return nil, fmt.Errorf("error querying db for monitors: %w", err)
 	}
 	defer rows.Close()
@@ -87,6 +112,8 @@ func GetAllMonitors() ([]models.MonitorEntry, error) {
 		)
 
 		if err != nil {
+			span.SetTag("error", true)
+			span.SetTag("error.message", err.Error())
 			return nil, fmt.Errorf("error scanning monitor: %w", err)
 		}
 
@@ -94,6 +121,8 @@ func GetAllMonitors() ([]models.MonitorEntry, error) {
 	}
 
 	if err = rows.Err(); err != nil {
+		span.SetTag("error", true)
+		span.SetTag("error.message", err.Error())
 		return nil, fmt.Errorf("error iterating through monitors: %w", err)
 	}
 
