@@ -19,17 +19,22 @@ import (
 func main() {
 	/*
 		Main entry to the backend:
-			1. Init DB
+			1. Detect if running in Docker
 			2. Init Logger
-			3. Init Metrics
-			3. Start Monitor Checker
-			4. Setup Routes
-			5. Configure HTTP
-			6. Start Server in goroutine
-			7. Shutdown on interupt
+			3. Init DB
+			4. Init Metrics
+			5. Start Monitor Checker
+			6. Setup Routes
+			7. Configure HTTP
+			8. Start Server in goroutine
+			9. Shutdown on interupt
 	*/
-	// Init Logger (path relative to backend directory)
-	logFilePath := "../logs/url-monitor.log"
+
+	// Detect Docker Container
+	datadogHost := getDatadogHost()
+
+	// Init Logger
+	logFilePath := getLogPath()
 	err := logging.InitLogger(logFilePath)
 	if err != nil {
 		log.Fatalf("Failed to init logger: %v", err)
@@ -50,18 +55,19 @@ func main() {
 	}()
 
 	// Initialize tracer
-    tracer.Start(
-        tracer.WithService("url-monitor"),           
-        tracer.WithEnv("dev"),                       
-        tracer.WithServiceVersion("1.0.0"),          
-        tracer.WithAgentAddr("localhost:8126"),      
-        tracer.WithAnalytics(true),                  
-        tracer.WithRuntimeMetrics(),                 
-    )
-    defer tracer.Stop()
+	tracer.Start(
+		tracer.WithService("url-monitor"),
+		tracer.WithEnv(getEnv()),
+		tracer.WithServiceVersion("1.0.0"),
+		tracer.WithAgentAddr(datadogHost+":8126"),
+		tracer.WithAnalytics(true),
+		tracer.WithRuntimeMetrics(),
+	)
+	defer tracer.Stop()
 
 	// Init Metrics
-	err = metrics.InitMetrics("127.0.0.1:8125")
+	metricsHost := datadogHost + ":8125"
+	err = metrics.InitMetrics(metricsHost)
 	if err != nil {
 		log.Printf("Failed to init metrics: %v", err)
 	} else {
@@ -70,7 +76,7 @@ func main() {
 	}
 
 	// Start Monitor Checker
-	checkInterval := 30 * time.Second 
+	checkInterval := 30 * time.Second
 	worker.StartMonitorChecker(checkInterval)
 
 	// Setup Routes
@@ -98,4 +104,32 @@ func main() {
 	<-quit
 
 	log.Println("Server shutting down")
+}
+
+// Helper function to determine the Datadog Agent Address
+func getDatadogHost() string {
+	// Check ENV
+	if host := os.Getenv("DD_AGENT_HOST"); host != "" {
+		return host
+	}
+
+	// Default to host.docker.internal
+	return "host.docker.internal"
+}
+
+// Helper function to determine the Datadog Environment
+func getEnv() string {
+	if env := os.Getenv("DD_ENV"); env != "" {
+		return env
+	}
+	return "dev"
+}
+
+// Helper function to get the log file path
+func getLogPath() string {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return "logs/url-monitor.log"
+	}
+	// On host: use parent directory's logs folder
+	return "../logs/url-monitor.log"
 }
