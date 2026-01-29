@@ -20,7 +20,7 @@ func CORSMiddleware(next http.Handler) http.Handler {
 			// Default allowed origins for development
 			allowedOrigins = []string{
 				"http://localhost:3000",
-				"*", // Allow all in development (remove for production)
+				"https://url-monitor-gamma.vercel.app",
 			}
 		}
 
