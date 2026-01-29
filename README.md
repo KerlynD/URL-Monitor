@@ -1,9 +1,9 @@
 # URL-Monitor
-A production-style URL monitoring service written in Go and fully instrumented with Datadog logs, metrics, and traces for my Datadog take-home project.
+A production-style URL monitoring service written in Go and fully instrumented with Datadog logs, metrics, and traces.
 
 ## Overview
 
-For my take home project I built a simple URL monitoring web service built in Go with full Datadog observability. With this project I wanted to learn Go, Datadog Agent integration, and understand telemetry for the Agent Logs Pipeline team I'll be joining. 
+For my project I built a simple URL monitoring web service built in Go with full Datadog observability. With this project I wanted to learn Go, Datadog Agent integration, and understand telemetry.
 
 In the end I was able to do all the steps to get a production ready app deployed to Kubernetes!
 
@@ -199,6 +199,3 @@ Kubernetes introduced a lot of new concepts around networking and deployment, an
 
 ### Custom Dashboard:
 ![custom-dashboard](assets/custom-dashboard.png)
-
-
-Thank you for the opportunity to work on this project. It was a great introduction to the Datadog Agent ecosystem and gave me a much deeper appreciation for how logs, metrics, and traces come together in a real system.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/KerlynD/URL-Monitor/backend/db"
@@ -31,6 +32,7 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 	var req struct {
 		URL           string `json:"url"`
 		CheckInterval int    `json:"check_interval"`
+		Password      string `json:"password"`
 	}
 
 	err := json.NewDecoder(request.Body).Decode(&req)
@@ -41,6 +43,21 @@ func CreateMonitor(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(response).Encode(map[string]string{
 			"error": "Invalid request format",
+		})
+		return
+	}
+
+	// Check password
+	expectedPassword := os.Getenv("ADMIN_PASSWORD")
+	if expectedPassword == "" {
+		expectedPassword = "urlmonitor2024" // Default password if not set
+	}
+	
+	if req.Password != expectedPassword {
+		span.SetTag("error", true)
+		response.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(response).Encode(map[string]string{
+			"error": "Invalid password",
 		})
 		return
 	}
